@@ -1,0 +1,12 @@
+# project
+bin/
+
+# lldb
+*.dSYM/
+
+# clang
+.cache/
+compile_commands.json
+
+# macos
+.DS_Store
