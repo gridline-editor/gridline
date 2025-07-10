@@ -3,12 +3,15 @@
 # path
 src_dir="src"
 bin_dir="bin"
+# tst_dir="test"
 
 c_sources=$(find "${src_dir}" -type f -name "*.c")
+# c_tests=$(find "${tst_dir}" -type f -name "*.c")
 
 # project
 project_name="gridline"
 project="${bin_dir}/${project_name}"
+# test_project="${bin_dir}/tests"
 
 c_compiler="clang"
 c_opt=("-O0" "-g")
