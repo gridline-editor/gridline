@@ -49,3 +49,11 @@ gl_source gl_source_init(const char* _pathname, u8* _data, u32 _size) {
     source.size = _size;
     return source;
 }
+
+gl_toml_lexer gl_toml_lexer_init(const gl_source* _source) {
+    gl_toml_lexer lexer;
+    lexer.source = _source;
+    lexer.pos = pos_init();
+    lexer.token_pos = pos_init();
+    return lexer;
+}
