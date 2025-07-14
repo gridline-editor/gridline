@@ -81,3 +81,8 @@ gl_toml_lexer gl_toml_lexer_init(const gl_source* _source) {
     lexer.token_pos = pos_init();
     return lexer;
 }
+
+gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
+    gl_toml_lexer lexer = *_lexer;
+    return lexer;
+}
