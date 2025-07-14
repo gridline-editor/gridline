@@ -41,3 +41,11 @@ static u32 utf8_r_size(const u8* _data) {
     const u32 index = (_data[0] & 0xff) >> 4;
     return utf8_sizes[index];
 }
+
+gl_source gl_source_init(const char* _pathname, u8* _data, u32 _size) {
+    gl_source source;
+    source.pathname = _pathname;
+    source.data = _data;
+    source.size = _size;
+    return source;
+}

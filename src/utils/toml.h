@@ -18,4 +18,13 @@ struct gl_pos {
     u32 index;
 };
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+gl_source gl_source_init(const char* _pathname, u8* _data, u32 _size);
+#ifdef __cplusplus
+}
+#endif // __cplusplus
+
 #endif // GRIDLINE_TOML_H
