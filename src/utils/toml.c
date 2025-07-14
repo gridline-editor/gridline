@@ -1,4 +1,5 @@
 #include "utils/types.h"
+#include "utils/memory.h"
 #include "utils/toml.h"
 
 static const u32 utf8_sizes[] = {
@@ -12,6 +13,9 @@ static gl_pos pos_init(void);
 static gl_pos pos_w_next_line(const gl_pos* _pos, u32 _bytes);
 static gl_pos pos_w_next_col(const gl_pos* _pos, u32 _bytes);
 static u32 utf8_r_size(const u8* _data);
+static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
+static u32 lexer_r_codepoint(const gl_toml_lexer* _lexer, u32* _bytes);
+static u32 lexer_r_next_codepoint(const gl_toml_lexer* _lexer, u32* _bytes);
 
 
 static gl_pos pos_init(void) {
@@ -42,6 +46,26 @@ static u32 utf8_r_size(const u8* _data) {
     return utf8_sizes[index];
 }
 
+static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes) {
+    const u32 remaining_bytes = _lexer->source->size - _lexer->pos.index;
+    return (_bytes <= remaining_bytes);
+}
+
+static u32 lexer_r_codepoint(const gl_toml_lexer* _lexer, u32* _bytes) {
+    const u8* curr = _lexer->source->data + _lexer->pos.index;
+    const u32 bytes = utf8_r_size(curr);
+    *_bytes = bytes;
+    return deserialize_u32(curr, bytes);
+}
+
+static u32 lexer_r_next_codepoint(const gl_toml_lexer* _lexer, u32* _bytes) {
+    const u8* curr = _lexer->source->data + _lexer->pos.index;
+    u32 bytes = utf8_r_size(curr);
+    curr += bytes;
+    bytes = utf8_r_size(curr);
+    *_bytes = bytes;
+    return deserialize_u32(curr, bytes);
+}
 gl_source gl_source_init(const char* _pathname, u8* _data, u32 _size) {
     gl_source source;
     source.pathname = _pathname;
