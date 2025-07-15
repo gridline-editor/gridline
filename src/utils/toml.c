@@ -49,7 +49,7 @@ static u32 utf8_r_size(const u8* _data) {
 
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes) {
     const u32 remaining_bytes = _lexer->source->size - _lexer->pos.index;
-    return (_bytes <= remaining_bytes);
+    return (_bytes < remaining_bytes);
 }
 
 static u32 lexer_r_codepoint(const gl_toml_lexer* _lexer, u32* _bytes) {
