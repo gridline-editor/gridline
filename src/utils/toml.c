@@ -13,11 +13,13 @@ static gl_pos pos_init(void);
 static gl_pos pos_w_next_line(const gl_pos* _pos, u32 _bytes);
 static gl_pos pos_w_next_col(const gl_pos* _pos, u32 _bytes);
 static u32 utf8_r_size(const u8* _data);
+static b32 char_is_bare_key(u32 _cp);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
 static u32 lexer_r_codepoint(const gl_toml_lexer* _lexer, u32* _bytes);
 static u32 lexer_r_next_codepoint(const gl_toml_lexer* _lexer, u32* _bytes);
 static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer);
 static gl_toml_lexer lexer_skip_comment(const gl_toml_lexer* _lexer);
+static gl_toml_lexer lexer_collect_bare_key(const gl_toml_lexer* _lexer);
 
 
 static gl_pos pos_init(void) {
@@ -46,6 +48,15 @@ static gl_pos pos_w_next_col(const gl_pos* _pos, u32 _bytes) {
 static u32 utf8_r_size(const u8* _data) {
     const u32 index = (_data[0] & 0xff) >> 4;
     return utf8_sizes[index];
+}
+
+static b32 char_is_bare_key(u32 _cp) {
+    return (
+        (_cp == '_') || (_cp == '-') ||
+        ((_cp >= 'A') && (_cp <= 'Z')) ||
+        ((_cp >= 'a') && (_cp <= 'z')) ||
+        ((_cp >= '0') && (_cp <= '9'))
+    );
 }
 
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes) {
@@ -98,7 +109,6 @@ static gl_toml_lexer lexer_skip_comment(const gl_toml_lexer* _lexer) {
     gl_toml_lexer lexer = *_lexer;
     u32 cp = 0;
     u32 bytes = 0;
-
     cp = lexer_r_codepoint(&lexer, &bytes);
     if(cp == '#') {
         while(lexer_can_advance(&lexer, bytes)) {
@@ -111,6 +121,25 @@ static gl_toml_lexer lexer_skip_comment(const gl_toml_lexer* _lexer) {
                 // invalid control character
                 break;
             } else if((cp == '\n') && (cp == '\r')) {
+                break;
+            }
+        }
+    }
+
+    return lexer;
+}
+
+static gl_toml_lexer lexer_collect_bare_key(const gl_toml_lexer* _lexer) {
+    gl_toml_lexer lexer = *_lexer;
+    u32 cp = 0;
+    u32 bytes = 0;
+    cp = lexer_r_codepoint(&lexer, &bytes);
+    if(char_is_bare_key(cp)) {
+        lexer.token_pos = lexer.pos;
+        while(lexer_can_advance(&lexer, bytes)) {
+            lexer.pos = pos_w_next_col(&lexer.pos, bytes);
+            cp = lexer_r_codepoint(&lexer, &bytes);
+            if(!char_is_bare_key(cp)) {
                 break;
             }
         }
@@ -139,5 +168,6 @@ gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     gl_toml_lexer lexer = *_lexer;
     lexer = lexer_skip_whitespace(&lexer);
     lexer = lexer_skip_comment(&lexer);
+    lexer = lexer_collect_bare_key(&lexer);
     return lexer;
 }
