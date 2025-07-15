@@ -17,6 +17,7 @@ static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
 static u32 lexer_r_codepoint(const gl_toml_lexer* _lexer, u32* _bytes);
 static u32 lexer_r_next_codepoint(const gl_toml_lexer* _lexer, u32* _bytes);
 static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer);
+static gl_toml_lexer lexer_skip_comment(const gl_toml_lexer* _lexer);
 
 
 static gl_pos pos_init(void) {
@@ -93,6 +94,31 @@ static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer) {
     return lexer;
 }
 
+static gl_toml_lexer lexer_skip_comment(const gl_toml_lexer* _lexer) {
+    gl_toml_lexer lexer = *_lexer;
+    u32 cp = 0;
+    u32 bytes = 0;
+
+    cp = lexer_r_codepoint(&lexer, &bytes);
+    if(cp == '#') {
+        while(lexer_can_advance(&lexer, bytes)) {
+            cp = lexer_r_codepoint(&lexer, &bytes);
+            lexer.pos = pos_w_next_col(&lexer.pos, bytes);
+            if(((cp >= 0x0) && (cp <= 0x8)) ||
+               ((cp == 0xb) || (cp == 0xc)) ||
+               ((cp >= 0xe) && (cp <= 0x1f)) ||
+               (cp == 0x7f)) {
+                // invalid control character
+                break;
+            } else if((cp == '\n') && (cp == '\r')) {
+                break;
+            }
+        }
+    }
+
+    return lexer;
+}
+
 gl_source gl_source_init(const char* _pathname, u8* _data, u32 _size) {
     gl_source source;
     source.pathname = _pathname;
@@ -112,5 +138,6 @@ gl_toml_lexer gl_toml_lexer_init(const gl_source* _source) {
 gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     gl_toml_lexer lexer = *_lexer;
     lexer = lexer_skip_whitespace(&lexer);
+    lexer = lexer_skip_comment(&lexer);
     return lexer;
 }
