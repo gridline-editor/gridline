@@ -86,6 +86,8 @@ static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer) {
             }
         } else if(cp == '\n') {
             lexer.pos = pos_w_next_line(&lexer.pos, bytes);
+        } else {
+            break;
         }
     } while(lexer_can_advance(&lexer, bytes));
     return lexer;
