@@ -2,6 +2,13 @@
 #include "utils/memory.h"
 #include "utils/toml.h"
 
+typedef struct gl_codepoint gl_codepoint;
+
+struct gl_codepoint {
+    u32 data;
+    u32 size;
+};
+
 static const u32 utf8_sizes[] = {
     1, 1, 1, 1,
     1, 1, 1, 1,
