@@ -16,7 +16,8 @@ static const u32 utf8_sizes[] = {
     2, 2, 3, 4
 };
 
-static gl_pos pos_init(void);
+static gl_pos pos_init(u32 _ln, u32 _col, u32 _idx);
+static gl_pos pos_zero(void);
 static gl_pos pos_w_next_line(const gl_pos* _pos, u32 _bytes);
 static gl_pos pos_w_next_col(const gl_pos* _pos, u32 _bytes);
 static u32 utf8_r_size(const u8* _data);
@@ -34,10 +35,18 @@ static gl_toml_lexer lexer_skip_commnet(const gl_toml_lexer* _lexer,
                                         const gl_codepoint* _cp);
 
 
-static gl_pos pos_init(void) {
+static gl_pos pos_init(u32 _ln, u32 _col, u32 _idx) {
     gl_pos pos;
-    pos.ln = 1;
-    pos.col = 1;
+    pos.ln = _ln;
+    pos.col = _col;
+    pos.index = _idx;
+    return pos;
+}
+
+static gl_pos pos_zero(void) {
+    gl_pos pos;
+    pos.ln = 0;
+    pos.col = 0;
     pos.index = 0;
     return pos;
 }
