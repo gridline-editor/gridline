@@ -26,6 +26,7 @@ static b32 char_is_vert_whitespace(u32 _cp);
 static b32 char_is_whitespace(u32 _cp);
 static b32 char_is_comment(u32 _cp);
 static b32 char_is_nontab_control(u32 _cp);
+static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer);
 static gl_codepoint lexer_r_next_codepoint(const gl_toml_lexer* _lexer);
@@ -93,6 +94,23 @@ static b32 char_is_nontab_control(u32 _cp) {
         ((_cp >= 0xa) && (_cp <= 0x1f)) ||
         (_cp == 0x7f)
     );
+}
+
+static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer) {
+    gl_toml_lexer lexer = *_lexer;
+    gl_codepoint cp = {0};
+    while(lexer_can_advance(&lexer, cp.size)) {
+        cp = lexer_r_codepoint(&lexer);
+        if(char_is_whitespace(cp.data)) {
+            lexer = lexer_skip_whitespace(&lexer, &cp);
+        } else if(char_is_comment(cp.data)) {
+            lexer = lexer_skip_commnet(&lexer, &cp);
+        } else {
+            break;
+        }
+    }
+
+    return lexer;
 }
 
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes) {
@@ -186,17 +204,6 @@ gl_toml_lexer gl_toml_lexer_init(const gl_source* _source) {
 
 gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     gl_toml_lexer lexer = *_lexer;
-    gl_codepoint cp = {0};
-
-    while(lexer_can_advance(&lexer, cp.size)) {
-        cp = lexer_r_codepoint(&lexer);
-        if(char_is_whitespace(cp.data)) {
-            lexer = lexer_skip_whitespace(&lexer, &cp);
-        } else if(char_is_comment(cp.data)) {
-            lexer = lexer_skip_commnet(&lexer, &cp);
-        } else {
-            break;
-        }
     }
 
     return lexer;
