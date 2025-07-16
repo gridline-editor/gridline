@@ -22,11 +22,10 @@ static gl_pos pos_w_next_col(const gl_pos* _pos, u32 _bytes);
 static u32 utf8_r_size(const u8* _data);
 static b32 char_is_whitespace(u32 _cp);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
-static u32 lexer_r_codepoint(const gl_toml_lexer* _lexer, u32* _bytes);
-static u32 lexer_r_next_codepoint(const gl_toml_lexer* _lexer, u32* _bytes);
+static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer);
+static gl_codepoint lexer_r_next_codepoint(const gl_toml_lexer* _lexer);
 static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer,
-                                           u32 _cp,
-                                           u32 _bytes);
+                                           const gl_codepoint _cp);
 
 
 static gl_pos pos_init(void) {
@@ -68,49 +67,47 @@ static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes) {
     return (_bytes < remaining_bytes);
 }
 
-static u32 lexer_r_codepoint(const gl_toml_lexer* _lexer, u32* _bytes) {
+static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer) {
     const u8* curr = _lexer->source->data + _lexer->pos.index;
-    const u32 bytes = utf8_r_size(curr);
-    *_bytes = bytes;
-    return deserialize_u32(curr, bytes);
+    gl_codepoint cp;
+    cp.size = utf8_r_size(curr);
+    cp.data = deserialize_u32(curr, cp.size);
+    return cp;
 }
 
-static u32 lexer_r_next_codepoint(const gl_toml_lexer* _lexer, u32* _bytes) {
+static gl_codepoint lexer_r_next_codepoint(const gl_toml_lexer* _lexer) {
     const u8* curr = _lexer->source->data + _lexer->pos.index;
-    u32 bytes = utf8_r_size(curr);
-    curr += bytes;
-    bytes = utf8_r_size(curr);
-    *_bytes = bytes;
-    return deserialize_u32(curr, bytes);
+    const u32 bytes = utf8_r_size(curr);    
+    gl_codepoint cp;
+    cp.size = utf8_r_size(curr + bytes);
+    cp.data = deserialize_u32(curr, cp.size);
+    return cp;
 }
 
 static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer,
-                                           u32 _cp,
-                                           u32 _bytes) {
+                                           const gl_codepoint _cp) {
     gl_toml_lexer lexer = *_lexer;
-    u32 cp = _cp;
-    u32 bytes = _bytes;
-
-    while(lexer_can_advance(&lexer, bytes)) {
-        if((cp == ' ') || (cp == '\t')) {
-            lexer.pos = pos_w_next_col(&lexer.pos, bytes);
-        } else if(cp == '\r') {
-            u32 next_bytes = 0;
-            if(lexer_can_advance(&lexer, bytes) &&
-               (lexer_r_next_codepoint(&lexer, &next_bytes) == '\n')) {
-                lexer.pos = pos_w_next_line(&lexer.pos, bytes + next_bytes);
-            } else {
+    gl_codepoint cp = _cp;
+    while(lexer_can_advance(&lexer, cp.size)) {
+        if((cp.data == ' ') || (cp.data == '\t')) {
+            lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+        } else if(cp.data == '\r') {
+            gl_codepoint next_cp = lexer_r_next_codepoint(&lexer);
+            if(!lexer_can_advance(&lexer, cp.size) ||
+               (next_cp.data != '\n')) {
                 // TODO: handle malformed line termination
-                lexer.pos = pos_w_next_col(&lexer.pos, bytes);
-                break;
+                lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+            } else {
+                lexer.pos = pos_w_next_line(&lexer.pos,
+                                            cp.size + next_cp.size);
             }
-        } else if(cp == '\n') {
-            lexer.pos = pos_w_next_line(&lexer.pos, bytes);
+        } else if(cp.data == '\n') {
+            lexer.pos = pos_w_next_line(&lexer.pos, cp.size);
         } else {
             break;
         }
 
-        cp = lexer_r_codepoint(&lexer, &bytes);
+        cp = lexer_r_codepoint(&lexer);
     }
 
     return lexer;
@@ -134,16 +131,15 @@ gl_toml_lexer gl_toml_lexer_init(const gl_source* _source) {
 
 gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     gl_toml_lexer lexer = *_lexer;
-    u32 bytes = 0;
-    u32 cp = 0;
+    gl_codepoint cp = {0};
 
     do {
-        cp = lexer_r_codepoint(&lexer, &bytes);
-        if(char_is_whitespace(cp)) {
-            lexer = lexer_skip_whitespace(&lexer, cp, bytes);
+        cp = lexer_r_codepoint(&lexer);
+        if(char_is_whitespace(cp.data)) {
+            lexer = lexer_skip_whitespace(&lexer, cp);
         } else {
             break;
         }
-    } while(lexer_can_advance(&lexer, bytes));
+    } while(lexer_can_advance(&lexer, cp.size));
     return lexer;
 }
