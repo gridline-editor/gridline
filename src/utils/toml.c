@@ -23,11 +23,15 @@ static u32 utf8_r_size(const u8* _data);
 static b32 char_is_hori_whitespace(u32 _cp);
 static b32 char_is_vert_whitespace(u32 _cp);
 static b32 char_is_whitespace(u32 _cp);
+static b32 char_is_comment(u32 _cp);
+static b32 char_is_nontab_control(u32 _cp);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer);
 static gl_codepoint lexer_r_next_codepoint(const gl_toml_lexer* _lexer);
 static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer,
                                            const gl_codepoint* _cp);
+static gl_toml_lexer lexer_skip_commnet(const gl_toml_lexer* _lexer,
+                                        const gl_codepoint* _cp);
 
 
 static gl_pos pos_init(void) {
@@ -69,11 +73,19 @@ static b32 char_is_vert_whitespace(u32 _cp) {
 static b32 char_is_whitespace(u32 _cp) {
     return (char_is_hori_whitespace(_cp) || char_is_vert_whitespace(_cp));
 }
+
+static b32 char_is_comment(u32 _cp) {
+    return (_cp == '#');
+}
+
+static b32 char_is_nontab_control(u32 _cp) {
     return (
-        (_cp == ' ') || (_cp == '\t') || (_cp == '\r') ||
-        (_cp == '\n')
+        ((_cp >= 0x0) && (_cp <= 0x8)) ||
+        ((_cp >= 0xa) && (_cp <= 0x1f)) ||
+        (_cp == 0x7f)
     );
 }
+
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes) {
     const u32 remaining_bytes = _lexer->source->size - _lexer->pos.index;
     return (_bytes < remaining_bytes);
@@ -125,6 +137,24 @@ static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer,
     return lexer;
 }
 
+static gl_toml_lexer lexer_skip_commnet(const gl_toml_lexer* _lexer,
+                                        const gl_codepoint* _cp) {
+    gl_toml_lexer lexer = *_lexer;
+    gl_codepoint cp = *_cp;
+    while(lexer_can_advance(&lexer, cp.size)) {
+        cp = lexer_r_codepoint(&lexer);
+        if(char_is_vert_whitespace(cp.data)) {
+            break;
+        } else if(char_is_nontab_control(cp.data)) {
+            // TODO: handle non-tab control characters
+        }
+
+        lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+    }
+
+    return lexer;
+}
+
 gl_source gl_source_init(const char* _pathname, u8* _data, u32 _size) {
     gl_source source;
     source.pathname = _pathname;
@@ -149,6 +179,8 @@ gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
         cp = lexer_r_codepoint(&lexer);
         if(char_is_whitespace(cp.data)) {
             lexer = lexer_skip_whitespace(&lexer, &cp);
+        } else if(char_is_comment(cp.data)) {
+            lexer = lexer_skip_commnet(&lexer, &cp);
         } else {
             break;
         }
