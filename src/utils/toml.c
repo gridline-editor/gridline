@@ -20,6 +20,8 @@ static gl_pos pos_init(void);
 static gl_pos pos_w_next_line(const gl_pos* _pos, u32 _bytes);
 static gl_pos pos_w_next_col(const gl_pos* _pos, u32 _bytes);
 static u32 utf8_r_size(const u8* _data);
+static b32 char_is_hori_whitespace(u32 _cp);
+static b32 char_is_vert_whitespace(u32 _cp);
 static b32 char_is_whitespace(u32 _cp);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer);
@@ -56,7 +58,17 @@ static u32 utf8_r_size(const u8* _data) {
     return utf8_sizes[index];
 }
 
+static b32 char_is_hori_whitespace(u32 _cp) {
+    return ((_cp == ' ') || (_cp == '\t'));
+}
+
+static b32 char_is_vert_whitespace(u32 _cp) {
+    return ((_cp == '\r') || (_cp == '\n'));
+}
+
 static b32 char_is_whitespace(u32 _cp) {
+    return (char_is_hori_whitespace(_cp) || char_is_vert_whitespace(_cp));
+}
     return (
         (_cp == ' ') || (_cp == '\t') || (_cp == '\r') ||
         (_cp == '\n')
