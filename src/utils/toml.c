@@ -121,23 +121,27 @@ static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer,
                                            const gl_codepoint* _cp) {
     gl_toml_lexer lexer = *_lexer;
     gl_codepoint cp = *_cp;
+    u32 newline_size = 0;
     while(lexer_can_advance(&lexer, cp.size)) {
         if((cp.data == ' ') || (cp.data == '\t')) {
             lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
         } else if(cp.data == '\r') {
             gl_codepoint next_cp = lexer_r_next_codepoint(&lexer);
-            if(!lexer_can_advance(&lexer, cp.size) ||
-               (next_cp.data != '\n')) {
+            if(!lexer_can_advance(&lexer, cp.size) || (next_cp.data != '\n')) {
                 // TODO: handle malformed line termination
                 lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
             } else {
-                lexer.pos = pos_w_next_line(&lexer.pos,
-                                            cp.size + next_cp.size);
+                newline_size = cp.size + next_cp.size;
             }
         } else if(cp.data == '\n') {
-            lexer.pos = pos_w_next_line(&lexer.pos, cp.size);
+            newline_size = cp.size;
         } else {
             break;
+        }
+
+        if(newline_size) {
+            lexer.pos = pos_w_next_line(&lexer.pos, newline_size);
+            newline_size = 0;
         }
 
         cp = lexer_r_codepoint(&lexer);
