@@ -24,6 +24,7 @@ struct gl_toml_lexer {
     const gl_source* source;
     gl_pos pos;
     gl_pos token_pos;
+    gl_pos first_nonblank;
 };
 
 #ifdef __cplusplus

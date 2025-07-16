@@ -28,6 +28,7 @@ static b32 char_is_comment(u32 _cp);
 static b32 char_is_nontab_control(u32 _cp);
 static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
+static b32 lexer_is_at_line_start(const gl_toml_lexer* _lexer);
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer);
 static gl_codepoint lexer_r_next_codepoint(const gl_toml_lexer* _lexer);
 static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer,
@@ -118,6 +119,10 @@ static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes) {
     return (_bytes < remaining_bytes);
 }
 
+static b32 lexer_is_at_line_start(const gl_toml_lexer* _lexer) {
+    return (_lexer->pos.col == 1);
+}
+
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer) {
     const u8* curr = _lexer->source->data + _lexer->pos.index;
     gl_codepoint cp;
@@ -197,14 +202,19 @@ gl_source gl_source_init(const char* _pathname, u8* _data, u32 _size) {
 gl_toml_lexer gl_toml_lexer_init(const gl_source* _source) {
     gl_toml_lexer lexer;
     lexer.source = _source;
-    lexer.pos = pos_init();
-    lexer.token_pos = pos_init();
+    lexer.pos = pos_init(1, 1, 0);
+    lexer.token_pos = pos_zero();
+    lexer.first_nonblank = pos_zero();
     return lexer;
 }
 
 gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     gl_toml_lexer lexer = *_lexer;
+    if(lexer_is_at_line_start(&lexer)) {
+        lexer.first_nonblank = pos_zero();
     }
 
+    lexer = lexer_skip_to_token(&lexer);
+    lexer.first_nonblank = lexer.pos;
     return lexer;
 }
