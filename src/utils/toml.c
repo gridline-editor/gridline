@@ -26,6 +26,7 @@ static b32 char_is_vert_whitespace(u32 _cp);
 static b32 char_is_whitespace(u32 _cp);
 static b32 char_is_comment(u32 _cp);
 static b32 char_is_nontab_control(u32 _cp);
+static b32 char_is_bare_key(u32 _cp);
 static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
 static b32 lexer_is_at_line_start(const gl_toml_lexer* _lexer);
@@ -35,6 +36,8 @@ static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer,
                                            const gl_codepoint* _cp);
 static gl_toml_lexer lexer_skip_commnet(const gl_toml_lexer* _lexer,
                                         const gl_codepoint* _cp);
+static gl_toml_lexer lexer_collect_bare_key(const gl_toml_lexer* _lexer,
+                                            const gl_codepoint* _cp);
 
 
 static gl_pos pos_init(u32 _ln, u32 _col, u32 _idx) {
@@ -94,6 +97,15 @@ static b32 char_is_nontab_control(u32 _cp) {
         ((_cp >= 0x0) && (_cp <= 0x8)) ||
         ((_cp >= 0xa) && (_cp <= 0x1f)) ||
         (_cp == 0x7f)
+    );
+}
+
+static b32 char_is_bare_key(u32 _cp) {
+    return (
+        (_cp == '_') || (_cp == '-') ||
+        ((_cp >= 'a') && (_cp <= 'z')) ||
+        ((_cp >= 'A') && (_cp <= 'Z')) ||
+        ((_cp >= '0') && (_cp <= '9'))
     );
 }
 
@@ -191,6 +203,22 @@ static gl_toml_lexer lexer_skip_commnet(const gl_toml_lexer* _lexer,
     return lexer;
 }
 
+static gl_toml_lexer lexer_collect_bare_key(const gl_toml_lexer* _lexer,
+                                            const gl_codepoint* _cp) {
+    gl_toml_lexer lexer = *_lexer;
+    gl_codepoint cp = *_cp;
+    while(lexer_can_advance(&lexer, cp.size)) {
+        cp = lexer_r_codepoint(&lexer);
+        if(!char_is_bare_key(cp.data)) {
+            break;
+        }
+
+        lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+    }
+
+    return lexer;
+}
+
 gl_source gl_source_init(const char* _pathname, u8* _data, u32 _size) {
     gl_source source;
     source.pathname = _pathname;
@@ -216,5 +244,11 @@ gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
 
     lexer = lexer_skip_to_token(&lexer);
     lexer.first_nonblank = lexer.pos;
+    gl_codepoint cp = lexer_r_codepoint(&lexer);
+    if(char_is_bare_key(cp.data)) {
+        lexer.token_pos = lexer.pos;
+        lexer = lexer_collect_bare_key(&lexer, &cp);
+    }
+
     return lexer;
 }
