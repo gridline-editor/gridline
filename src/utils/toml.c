@@ -29,7 +29,6 @@ static b32 char_is_nontab_control(u32 _cp);
 static b32 char_is_bare_key(u32 _cp);
 static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
-static b32 lexer_is_at_line_start(const gl_toml_lexer* _lexer);
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer);
 static gl_codepoint lexer_r_next_codepoint(const gl_toml_lexer* _lexer);
 static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer,
@@ -133,10 +132,6 @@ static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer) {
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes) {
     const u32 remaining_bytes = _lexer->source->size - _lexer->pos.index;
     return (_bytes < remaining_bytes);
-}
-
-static b32 lexer_is_at_line_start(const gl_toml_lexer* _lexer) {
-    return (_lexer->pos.col == 1);
 }
 
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer) {
