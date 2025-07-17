@@ -119,6 +119,10 @@ static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer) {
         } else if(char_is_comment(cp.data)) {
             lexer = lexer_skip_commnet(&lexer, &cp);
         } else {
+            if(cp.data != '\0') {
+                lexer.first_nonblank = lexer.pos;
+            }
+
             break;
         }
     }
@@ -177,6 +181,7 @@ static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer,
         if(newline_size) {
             lexer.pos = pos_w_next_line(&lexer.pos, newline_size);
             newline_size = 0;
+            lexer.first_nonblank = pos_zero();
         }
 
         cp = lexer_r_codepoint(&lexer);
@@ -238,12 +243,7 @@ gl_toml_lexer gl_toml_lexer_init(const gl_source* _source) {
 
 gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     gl_toml_lexer lexer = *_lexer;
-    if(lexer_is_at_line_start(&lexer)) {
-        lexer.first_nonblank = pos_zero();
-    }
-
     lexer = lexer_skip_to_token(&lexer);
-    lexer.first_nonblank = lexer.pos;
     gl_codepoint cp = lexer_r_codepoint(&lexer);
     if(char_is_bare_key(cp.data)) {
         lexer.token_pos = lexer.pos;
