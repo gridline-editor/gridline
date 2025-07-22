@@ -27,6 +27,7 @@ static b32 char_is_whitespace(u32 _cp);
 static b32 char_is_comment(u32 _cp);
 static b32 char_is_nontab_control(u32 _cp);
 static b32 char_is_bare_key(u32 _cp);
+static b32 char_is_simple_escape(u32 _cp);
 static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer);
@@ -107,6 +108,15 @@ static b32 char_is_bare_key(u32 _cp) {
         ((_cp >= 'a') && (_cp <= 'z')) ||
         ((_cp >= 'A') && (_cp <= 'Z')) ||
         ((_cp >= '0') && (_cp <= '9'))
+    );
+}
+
+static b32 char_is_simple_escape(u32 _cp) {
+    return (
+        (_cp == 'n')  || (_cp == 't') || (_cp == 'r') ||
+        (_cp == '\"') || (_cp == '\\') || (_cp == '\'') ||
+        (_cp == 'b') || (_cp == 'f')  || (_cp == 'v') ||
+        (_cp == 'a')
     );
 }
 
@@ -242,6 +252,21 @@ static gl_toml_lexer lexer_collect_basic_string(const gl_toml_lexer* _lexer,
         if(cp.data == '\"') {
             break;
         }
+
+        if(cp.data == '\\') {
+            if(!lexer_can_advance(&lexer, cp.size)) {
+                // TODO: handle incomplete escape sequence
+            }
+
+            gl_codepoint next = lexer_r_next_codepoint(&lexer, 1);
+            if(char_is_simple_escape(next.data)) {
+                lexer.pos = pos_w_next_col(&lexer.pos, next.size);
+            } else {
+                // TODO: handle \uXXXX and \UXXXXXXXX
+                // TODO: handle unknwon escqpe sequence
+            }
+        }
+    }
 
     return lexer;
 }
