@@ -30,7 +30,7 @@ static b32 char_is_bare_key(u32 _cp);
 static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer);
-static gl_codepoint lexer_r_next_codepoint(const gl_toml_lexer* _lexer);
+static gl_codepoint lexer_r_next_codepoint(const gl_toml_lexer* _lexer, u32 _n);
 static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer,
                                            const gl_codepoint* _cp);
 static gl_toml_lexer lexer_skip_commnet(const gl_toml_lexer* _lexer,
@@ -133,18 +133,32 @@ static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes) {
 
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer) {
     const u8* curr = _lexer->source->data + _lexer->pos.index;
-    gl_codepoint cp;
+    gl_codepoint cp = {0};
     cp.size = utf8_r_size(curr);
     cp.data = deserialize_u32(curr, cp.size);
     return cp;
 }
 
-static gl_codepoint lexer_r_next_codepoint(const gl_toml_lexer* _lexer) {
+static gl_codepoint lexer_r_next_codepoint(const gl_toml_lexer* _lexer,
+                                           u32 _n) {
     const u8* curr = _lexer->source->data + _lexer->pos.index;
-    const u32 bytes = utf8_r_size(curr);    
-    gl_codepoint cp;
-    cp.size = utf8_r_size(curr + bytes);
-    cp.data = deserialize_u32(curr, cp.size);
+    u32 byte_sum = 0;
+    u32 bytes = 0;
+    gl_codepoint cp = {0};
+    u32 i = 0;
+
+    for(; i < _n; i++) {
+        bytes = utf8_r_size(curr + byte_sum);
+        if(lexer_can_advance(_lexer, byte_sum + bytes)) {
+            byte_sum += bytes;
+        }
+    }
+
+    if(i == (_n - 1)) {
+        cp.size = utf8_r_size(curr + byte_sum);
+        cp.data = deserialize_u32(curr + byte_sum, cp.size);
+    }
+
     return cp;
 }
 
@@ -157,7 +171,7 @@ static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer,
         if((cp.data == ' ') || (cp.data == '\t')) {
             lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
         } else if(cp.data == '\r') {
-            gl_codepoint next_cp = lexer_r_next_codepoint(&lexer);
+            gl_codepoint next_cp = lexer_r_next_codepoint(&lexer, 1);
             if(!lexer_can_advance(&lexer, cp.size) || (next_cp.data != '\n')) {
                 // TODO: handle malformed line termination
                 lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
