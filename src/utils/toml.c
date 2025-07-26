@@ -28,6 +28,8 @@ static b32 char_is_comment(u32 _cp);
 static b32 char_is_nontab_control(u32 _cp);
 static b32 char_is_bare_key(u32 _cp);
 static b32 char_is_simple_escape(u32 _cp);
+static b32 char_is_unicode_escape(u32 _cp);
+static b32 char_is_hexadecimal(u32 _cp);
 static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer);
@@ -36,6 +38,8 @@ static gl_toml_lexer lexer_skip_whitespace(const gl_toml_lexer* _lexer,
                                            const gl_codepoint* _cp);
 static gl_toml_lexer lexer_skip_commnet(const gl_toml_lexer* _lexer,
                                         const gl_codepoint* _cp);
+static gl_toml_lexer lexer_skip_escaped_unicode(const gl_toml_lexer* _lexer,
+                                                const gl_codepoint* _cp);
 static gl_toml_lexer lexer_collect_bare_key(const gl_toml_lexer* _lexer,
                                             const gl_codepoint* _cp);
 static gl_toml_lexer lexer_collect_basic_string(const gl_toml_lexer* _lexer,
@@ -117,6 +121,18 @@ static b32 char_is_simple_escape(u32 _cp) {
         (_cp == '\"') || (_cp == '\\') || (_cp == '\'') ||
         (_cp == 'b') || (_cp == 'f')  || (_cp == 'v') ||
         (_cp == 'a')
+    );
+}
+
+static b32 char_is_unicode_escape(u32 _cp) {
+    return ((_cp == 'u') || (_cp == 'U'));
+}
+
+static b32 char_is_hexadecimal(u32 _cp) {
+    return (
+        ((_cp >= '0') && (_cp <= '9')) ||
+        ((_cp >= 'a') && (_cp <= 'f')) ||
+        ((_cp >= 'A') && (_cp <= 'F'))
     );
 }
 
@@ -226,6 +242,29 @@ static gl_toml_lexer lexer_skip_commnet(const gl_toml_lexer* _lexer,
     return lexer;
 }
 
+static gl_toml_lexer lexer_skip_escaped_unicode(const gl_toml_lexer* _lexer,
+                                                const gl_codepoint* _cp) {
+    const u32 expected_bytes = (_cp->data == 'u')?
+        4: 8;
+
+    gl_toml_lexer lexer = *_lexer;
+    gl_codepoint cp = *_cp;
+    for(u32 i = 0; i < expected_bytes; i++) {
+        if(!lexer_can_advance(&lexer, cp.size)) {
+            // TODO: handle incomplete escape sequence
+            break;
+        }
+
+        lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+        cp = lexer_r_codepoint(&lexer);
+        if(!char_is_hexadecimal(cp.data)) {
+            // TODO: handle incomplete escape sequence
+        }
+    }
+
+    return lexer;
+}
+
 static gl_toml_lexer lexer_collect_bare_key(const gl_toml_lexer* _lexer,
                                             const gl_codepoint* _cp) {
     gl_toml_lexer lexer = *_lexer;
@@ -256,14 +295,16 @@ static gl_toml_lexer lexer_collect_basic_string(const gl_toml_lexer* _lexer,
         if(cp.data == '\\') {
             if(!lexer_can_advance(&lexer, cp.size)) {
                 // TODO: handle incomplete escape sequence
+                break;
             }
 
-            gl_codepoint next = lexer_r_next_codepoint(&lexer, 1);
+            const gl_codepoint next = lexer_r_next_codepoint(&lexer, 1);
             if(char_is_simple_escape(next.data)) {
                 lexer.pos = pos_w_next_col(&lexer.pos, next.size);
+            } else if(char_is_unicode_escape(next.data)) {
+                lexer = lexer_skip_escaped_unicode(&lexer, &cp);
             } else {
-                // TODO: handle \uXXXX and \UXXXXXXXX
-                // TODO: handle unknwon escqpe sequence
+                // TODO: handle reserved escape sequence
             }
         }
     }

@@ -1,11 +1,12 @@
+#include <string.h>
 #include <stdio.h>
 
 #include "utils/toml.h"
 
 int main(void) {
-    u8 data[] = "hi1234\r\n   \"hello from string\"";
-    printf("size: %zu\n", sizeof(data));
-    gl_source source = gl_source_init(0, &data[0], sizeof(data));
+    char* data = "\"\\u11ab \\U00033a1\"";
+    printf("size: %zu\n", strlen(data));
+    gl_source source = gl_source_init(0, (u8*) data, strlen(data));
     gl_toml_lexer lexer = gl_toml_lexer_init(&source);
     u32 last_index = 0;
 
