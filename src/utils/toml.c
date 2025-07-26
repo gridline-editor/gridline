@@ -151,7 +151,10 @@ static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer) {
         } else if(char_is_comment(cp.data)) {
             lexer = lexer_skip_commnet(&lexer, &cp);
         } else {
-            lexer.first_nonblank = lexer.pos;
+            if(lexer.first_nonblank.col == 0) {
+                lexer.first_nonblank = lexer.pos;
+            }
+
             break;
         }
     }
