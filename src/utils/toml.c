@@ -27,6 +27,7 @@ static b32 char_is_whitespace(u32 _cp);
 static b32 char_is_comment(u32 _cp);
 static b32 char_is_nontab_control(u32 _cp);
 static b32 char_is_bare_key(u32 _cp);
+static b32 char_is_string(u32 _cp);
 static b32 char_is_simple_escape(u32 _cp);
 static b32 char_is_unicode_escape(u32 _cp);
 static b32 char_is_hexadecimal(u32 _cp);
@@ -42,8 +43,8 @@ static gl_toml_lexer lexer_skip_escaped_unicode(const gl_toml_lexer* _lexer,
                                                 const gl_codepoint* _cp);
 static gl_toml_lexer lexer_collect_bare_key(const gl_toml_lexer* _lexer,
                                             const gl_codepoint* _cp);
-static gl_toml_lexer lexer_collect_basic_string(const gl_toml_lexer* _lexer,
-                                                const gl_codepoint* _cp);
+static gl_toml_lexer lexer_collect_string(const gl_toml_lexer* _lexer,
+                                          const gl_codepoint* _cp);
 
 
 static gl_pos pos_init(u32 _ln, u32 _col, u32 _idx) {
@@ -113,6 +114,10 @@ static b32 char_is_bare_key(u32 _cp) {
         ((_cp >= 'A') && (_cp <= 'Z')) ||
         ((_cp >= '0') && (_cp <= '9'))
     );
+}
+
+static b32 char_is_string(u32 _cp) {
+    return ((_cp == '\"') || (_cp == '\''));
 }
 
 static b32 char_is_simple_escape(u32 _cp) {
@@ -281,14 +286,18 @@ static gl_toml_lexer lexer_collect_bare_key(const gl_toml_lexer* _lexer,
     return lexer;
 }
 
-static gl_toml_lexer lexer_collect_basic_string(const gl_toml_lexer* _lexer,
-                                                const gl_codepoint* _cp) {
+static gl_toml_lexer lexer_collect_string(const gl_toml_lexer* _lexer,
+                                          const gl_codepoint* _cp) {
     gl_toml_lexer lexer = *_lexer;
     gl_codepoint cp = *_cp;
     while(lexer_can_advance(&lexer, cp.size)) {
         lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
         cp = lexer_r_codepoint(&lexer);
-        if(cp.data == '\"') {
+        if(cp.data == _cp->data) {
+            if(lexer_can_advance(&lexer, cp.size)) {
+                lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+            }
+
             break;
         }
 
@@ -339,9 +348,9 @@ gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     } else if(char_is_bare_key(cp.data)) {
         lexer.token_pos = lexer.pos;
         lexer = lexer_collect_bare_key(&lexer, &cp);
-    } else if(cp.data == '\"') {
+    } else if(char_is_string(cp.data)) {
         lexer.token_pos = lexer.pos;
-        lexer = lexer_collect_basic_string(&lexer, &cp);
+        lexer = lexer_collect_string(&lexer, &cp);
     }
 
     return lexer;
