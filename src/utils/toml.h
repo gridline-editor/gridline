@@ -5,6 +5,7 @@
 
 typedef struct gl_source gl_source;
 typedef struct gl_pos gl_pos;
+typedef struct gl_toml_token gl_toml_token;
 typedef struct gl_toml_lexer gl_toml_lexer;
 
 struct gl_source {
@@ -19,6 +20,11 @@ struct gl_pos {
     u32 index;
 };
 
+struct gl_toml_token {
+    gl_token_info info;
+    gl_pos start;
+    gl_pos end;
+};
 
 struct gl_toml_lexer {
     const gl_source* source;
