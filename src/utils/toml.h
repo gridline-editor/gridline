@@ -39,6 +39,7 @@ extern "C" {
 gl_source gl_source_init(const char* _pathname, u8* _data, u32 _size);
 gl_toml_lexer gl_toml_lexer_init(const gl_source* _source);
 gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer);
+gl_toml_token gl_toml_lexer_r_token(const gl_toml_lexer* _lexer);
 #ifdef __cplusplus
 }
 #endif // __cplusplus

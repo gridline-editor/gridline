@@ -358,3 +358,10 @@ gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
 
     return lexer;
 }
+
+gl_toml_token gl_toml_lexer_r_token(const gl_toml_lexer* _lexer) {
+    gl_toml_token token;
+    token.start = _lexer->token_pos;
+    token.end = _lexer->pos;
+    return token;
+}
