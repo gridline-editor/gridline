@@ -30,6 +30,8 @@ static b32 char_is_bare_key(u32 _cp);
 static b32 char_is_string(u32 _cp);
 static b32 char_is_simple_escape(u32 _cp);
 static b32 char_is_unicode_escape(u32 _cp);
+static b32 char_is_decimal_prefix(u32 _cp);
+static b32 char_is_decimal(u32 _cp);
 static b32 char_is_hexadecimal(u32 _cp);
 static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
@@ -41,10 +43,14 @@ static gl_toml_lexer lexer_skip_commnet(const gl_toml_lexer* _lexer,
                                         const gl_codepoint* _cp);
 static gl_toml_lexer lexer_skip_escaped_unicode(const gl_toml_lexer* _lexer,
                                                 const gl_codepoint* _cp);
+static gl_toml_lexer lexer_skip_decimal(const gl_toml_lexer* _lexer,
+                                        const gl_codepoint* _cp);
 static gl_toml_lexer lexer_collect_bare_key(const gl_toml_lexer* _lexer,
                                             const gl_codepoint* _cp);
 static gl_toml_lexer lexer_collect_string(const gl_toml_lexer* _lexer,
                                           const gl_codepoint* _cp);
+static gl_toml_lexer lexer_collect_integer(const gl_toml_lexer* _lexer,
+                                           const gl_codepoint* _cp);
 
 
 static gl_pos pos_init(u32 _ln, u32 _col, u32 _idx) {
@@ -133,9 +139,17 @@ static b32 char_is_unicode_escape(u32 _cp) {
     return ((_cp == 'u') || (_cp == 'U'));
 }
 
+static b32 char_is_decimal_prefix(u32 _cp) {
+    return ((_cp == '+') || (_cp == '-'));
+}
+
+static b32 char_is_decimal(u32 _cp) {
+    return ((_cp >= '0') && (_cp <= '9'));
+}
+
 static b32 char_is_hexadecimal(u32 _cp) {
     return (
-        ((_cp >= '0') && (_cp <= '9')) ||
+        char_is_decimal(_cp) ||
         ((_cp >= 'a') && (_cp <= 'f')) ||
         ((_cp >= 'A') && (_cp <= 'F'))
     );
@@ -273,7 +287,20 @@ static gl_toml_lexer lexer_skip_escaped_unicode(const gl_toml_lexer* _lexer,
     return lexer;
 }
 
-static gl_toml_lexer lexer_collect_bare_key(const gl_toml_lexer* _lexer,
+static gl_toml_lexer lexer_skip_decimal(const gl_toml_lexer* _lexer,
+                                        const gl_codepoint* _cp) {
+    gl_toml_lexer lexer = *_lexer;
+    gl_codepoint cp = *_cp;
+    while(lexer_can_advance(&lexer, cp.size)) {
+        lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+        cp = lexer_r_codepoint(&lexer);
+        if(!char_is_decimal(cp.data)) {
+            break;
+        }
+    }
+
+    return lexer;
+}
                                             const gl_codepoint* _cp) {
     gl_toml_lexer lexer = *_lexer;
     gl_codepoint cp = *_cp;
@@ -324,6 +351,34 @@ static gl_toml_lexer lexer_collect_string(const gl_toml_lexer* _lexer,
     return lexer;
 }
 
+static gl_toml_lexer lexer_collect_integer(const gl_toml_lexer* _lexer,
+                                           const gl_codepoint* _cp) {
+    gl_toml_lexer lexer = *_lexer;
+    gl_codepoint cp = *_cp;
+    if((cp.data == '0') && lexer_can_advance(&lexer, cp.size)) {
+            lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+            switch(cp.data) {
+            case 'b':
+                break;
+            case 'o':
+                break;
+            case 'x':
+                break;
+            default:
+                if(char_is_decimal(cp.data)) {
+                    // TODO: handle leading zero number
+                    lexer = lexer_skip_decimal(&lexer, &cp);
+                }
+
+                break;
+            }
+    } else if(char_is_decimal(cp.data)) {
+        lexer = lexer_skip_decimal(&lexer, &cp);
+    }
+
+    return lexer;
+}
+
 gl_source gl_source_init(const char* _pathname, u8* _data, u32 _size) {
     gl_source source;
     source.pathname = _pathname;
@@ -354,6 +409,9 @@ gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     } else if(char_is_string(cp.data)) {
         lexer.token_pos = lexer.pos;
         lexer = lexer_collect_string(&lexer, &cp);
+    } else if(char_is_decimal_prefix(cp.data) || char_is_decimal(cp.data)) {
+        lexer.token_pos = lexer.pos;
+        lexer = lexer_collect_integer(&lexer, &cp);
     }
 
     return lexer;
