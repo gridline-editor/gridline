@@ -45,6 +45,8 @@ static gl_toml_lexer lexer_skip_escaped_unicode(const gl_toml_lexer* _lexer,
                                                 const gl_codepoint* _cp);
 static gl_toml_lexer lexer_skip_decimal(const gl_toml_lexer* _lexer,
                                         const gl_codepoint* _cp);
+static gl_toml_lexer lexer_skip_hexadecimal(const gl_toml_lexer* _lexer,
+                                            const gl_codepoint* _cp);
 static gl_toml_lexer lexer_collect_bare_key(const gl_toml_lexer* _lexer,
                                             const gl_codepoint* _cp);
 static gl_toml_lexer lexer_collect_string(const gl_toml_lexer* _lexer,
@@ -301,16 +303,32 @@ static gl_toml_lexer lexer_skip_decimal(const gl_toml_lexer* _lexer,
 
     return lexer;
 }
+
+static gl_toml_lexer lexer_skip_hexadecimal(const gl_toml_lexer* _lexer,
                                             const gl_codepoint* _cp) {
     gl_toml_lexer lexer = *_lexer;
     gl_codepoint cp = *_cp;
     while(lexer_can_advance(&lexer, cp.size)) {
+        lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+        cp = lexer_r_codepoint(&lexer);
+        if(!char_is_hexadecimal(cp.data)) {
+            break;
+        }
+    }
+
+    return lexer;
+}
+
+static gl_toml_lexer lexer_collect_bare_key(const gl_toml_lexer* _lexer,
+                                            const gl_codepoint* _cp) {
+    gl_toml_lexer lexer = *_lexer;
+    gl_codepoint cp = *_cp;
+    while(lexer_can_advance(&lexer, cp.size)) {
+        lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
         cp = lexer_r_codepoint(&lexer);
         if(!char_is_bare_key(cp.data)) {
             break;
         }
-
-        lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
     }
 
     return lexer;
@@ -363,6 +381,7 @@ static gl_toml_lexer lexer_collect_integer(const gl_toml_lexer* _lexer,
             case 'o':
                 break;
             case 'x':
+                lexer = lexer_skip_hexadecimal(&lexer, &cp);
                 break;
             default:
                 if(char_is_decimal(cp.data)) {
