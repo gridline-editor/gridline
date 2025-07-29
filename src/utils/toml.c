@@ -31,7 +31,9 @@ static b32 char_is_string(u32 _cp);
 static b32 char_is_simple_escape(u32 _cp);
 static b32 char_is_unicode_escape(u32 _cp);
 static b32 char_is_decimal_prefix(u32 _cp);
+static b32 char_is_binary(u32 _cp);
 static b32 char_is_decimal(u32 _cp);
+static b32 char_is_octal(u32 _cp);
 static b32 char_is_hexadecimal(u32 _cp);
 static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
@@ -43,6 +45,10 @@ static gl_toml_lexer lexer_skip_commnet(const gl_toml_lexer* _lexer,
                                         const gl_codepoint* _cp);
 static gl_toml_lexer lexer_skip_escaped_unicode(const gl_toml_lexer* _lexer,
                                                 const gl_codepoint* _cp);
+static gl_toml_lexer lexer_skip_binary(const gl_toml_lexer* _lexer,
+                                        const gl_codepoint* _cp);
+static gl_toml_lexer lexer_skip_octal(const gl_toml_lexer* _lexer,
+                                        const gl_codepoint* _cp);
 static gl_toml_lexer lexer_skip_decimal(const gl_toml_lexer* _lexer,
                                         const gl_codepoint* _cp);
 static gl_toml_lexer lexer_skip_hexadecimal(const gl_toml_lexer* _lexer,
@@ -145,8 +151,16 @@ static b32 char_is_decimal_prefix(u32 _cp) {
     return ((_cp == '+') || (_cp == '-'));
 }
 
+static b32 char_is_binary(u32 _cp) {
+    return ((_cp == '0') || (_cp == '1'));
+}
+
 static b32 char_is_decimal(u32 _cp) {
     return ((_cp >= '0') && (_cp <= '9'));
+}
+
+static b32 char_is_octal(u32 _cp) {
+    return ((_cp >= '0') && (_cp <= '7'));
 }
 
 static b32 char_is_hexadecimal(u32 _cp) {
@@ -289,6 +303,38 @@ static gl_toml_lexer lexer_skip_escaped_unicode(const gl_toml_lexer* _lexer,
     return lexer;
 }
 
+static gl_toml_lexer lexer_skip_binary(const gl_toml_lexer* _lexer,
+                                       const gl_codepoint* _cp) {
+
+    gl_toml_lexer lexer = *_lexer;
+    gl_codepoint cp = *_cp;
+    while(lexer_can_advance(&lexer, cp.size)) {
+        lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+        cp = lexer_r_codepoint(&lexer);
+        if(!char_is_binary(cp.data)) {
+            break;
+        }
+    }
+
+    return lexer;
+}
+
+static gl_toml_lexer lexer_skip_octal(const gl_toml_lexer* _lexer,
+                                        const gl_codepoint* _cp) {
+
+    gl_toml_lexer lexer = *_lexer;
+    gl_codepoint cp = *_cp;
+    while(lexer_can_advance(&lexer, cp.size)) {
+        lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+        cp = lexer_r_codepoint(&lexer);
+        if(!char_is_octal(cp.data)) {
+            break;
+        }
+    }
+
+    return lexer;
+}
+
 static gl_toml_lexer lexer_skip_decimal(const gl_toml_lexer* _lexer,
                                         const gl_codepoint* _cp) {
     gl_toml_lexer lexer = *_lexer;
@@ -374,23 +420,25 @@ static gl_toml_lexer lexer_collect_integer(const gl_toml_lexer* _lexer,
     gl_toml_lexer lexer = *_lexer;
     gl_codepoint cp = *_cp;
     if((cp.data == '0') && lexer_can_advance(&lexer, cp.size)) {
-            lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
-            switch(cp.data) {
-            case 'b':
-                break;
-            case 'o':
-                break;
-            case 'x':
-                lexer = lexer_skip_hexadecimal(&lexer, &cp);
-                break;
-            default:
-                if(char_is_decimal(cp.data)) {
-                    // TODO: handle leading zero number
-                    lexer = lexer_skip_decimal(&lexer, &cp);
-                }
-
-                break;
+        lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+        switch(cp.data) {
+        case 'b':
+            lexer = lexer_skip_binary(&lexer, &cp);
+            break;
+        case 'o':
+            lexer = lexer_skip_octal(&lexer, &cp);
+            break;
+        case 'x':
+            lexer = lexer_skip_hexadecimal(&lexer, &cp);
+            break;
+        default:
+            if(char_is_decimal(cp.data)) {
+                // TODO: handle leading zero number
+                lexer = lexer_skip_decimal(&lexer, &cp);
             }
+
+            break;
+        }
     } else if(char_is_decimal(cp.data)) {
         lexer = lexer_skip_decimal(&lexer, &cp);
     }
