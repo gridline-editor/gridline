@@ -480,18 +480,24 @@ gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     lexer = lexer_skip_to_token(&lexer);
     gl_codepoint cp = lexer_r_codepoint(&lexer);
     if(!lexer_can_advance(&lexer, cp.size)) {
-    } else if(char_is_bare_key(cp.data)) {
         lexer.token.type = GL_TOKEN_TYPE_EOF;
         lexer.token.start = lexer.pos;
+    }
+
+    if(char_is_bare_key(cp.data)) {
+        lexer.token.type = GL_TOKEN_TYPE_KEY_OR_INTEGER;
         lexer.token.start = lexer.pos;
         lexer = lexer_collect_bare_key(&lexer, &cp);
         lexer.token.end = lexer.pos;
+    } else if(char_is_decimal_prefix(cp.data)) {
+        lexer.token.type = GL_TOKEN_TYPE_INTEGER;
+        lexer.token.start = lexer.pos;
+        lexer = lexer_collect_integer(&lexer, &cp);
+        lexer.token.end = lexer.pos;
     } else if(char_is_string(cp.data)) {
+        lexer.token.type = GL_TOKEN_TYPE_STRING;
         lexer.token.start = lexer.pos;
         lexer = lexer_collect_string(&lexer, &cp);
-    } else if(char_is_decimal_prefix(cp.data) || char_is_decimal(cp.data)) {
-        lexer.token_pos = lexer.pos;
-        lexer = lexer_collect_integer(&lexer, &cp);
         lexer.token.end = lexer.pos;
     }
 

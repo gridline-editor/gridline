@@ -4,9 +4,9 @@
 #include "utils/toml.h"
 
 int main(void) {
-    char* data = "0x12a34\n0b10010001\n0o577\n000123\n0\n123\n";
+    char* data = "01234\n";
     printf("size: %zu\n", strlen(data));
-    gl_source source = gl_source_init(0, (u8*) data, strlen(data));
+    const gl_source source = gl_source_init(0, (u8*) data, strlen(data));
     gl_toml_lexer lexer = gl_toml_lexer_init(&source);
     u32 last_index = 0;
     u32 cp = 0;
@@ -18,18 +18,22 @@ int main(void) {
         token = gl_toml_lexer_r_token(&lexer);
         cp = source.data[token.start.index];
         if(cp == '\n') {
-            printf("\'\\n\' start: (%u:%u), end: (%u:%u)\n",
+            printf("\'\\n\' start: (%u:%u), end: (%u:%u), type: %u, error: %u\n",
                    token.start.ln,
                    token.start.col,
                    token.end.ln,
-                   token.end.col);
+                   token.end.col,
+                   token.type,
+                   token.error);
         } else {
-            printf("\'%c\'  start: (%u:%u), end: (%u:%u)\n",
+            printf("\'%c\'  start: (%u:%u), end: (%u:%u), type: %u, error: %u\n",
                    lexer.source->data[token.start.index],
                    token.start.ln,
                    token.start.col,
                    token.end.ln,
-                   token.end.col);
+                   token.end.col,
+                   token.type,
+                   token.error);
         }
 
         if(lexer.pos.index == last_index) {
