@@ -34,16 +34,17 @@ struct gl_pos {
 };
 
 struct gl_toml_token {
-    gl_token_info info;
     gl_pos start;
     gl_pos end;
+    gl_token_info info;
+    gl_token_error error;
 };
 
 struct gl_toml_lexer {
     const gl_source* source;
     gl_pos pos;
-    gl_pos token_pos;
     gl_pos first_nonblank;
+    gl_toml_token token;
 };
 
 #ifdef __cplusplus

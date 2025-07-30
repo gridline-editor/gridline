@@ -35,6 +35,7 @@ static b32 char_is_binary(u32 _cp);
 static b32 char_is_decimal(u32 _cp);
 static b32 char_is_octal(u32 _cp);
 static b32 char_is_hexadecimal(u32 _cp);
+static gl_toml_token token_zero(void);
 static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer);
@@ -169,6 +170,15 @@ static b32 char_is_hexadecimal(u32 _cp) {
         ((_cp >= 'a') && (_cp <= 'f')) ||
         ((_cp >= 'A') && (_cp <= 'F'))
     );
+}
+
+static gl_toml_token token_zero(void) {
+    gl_toml_token token;
+    token.error = GL_TOKEN_ERROR_NONE;
+    token.info = GL_TOKEN_INFO_NONE;
+    token.start = pos_zero();
+    token.end = pos_zero();
+    return token;
 }
 
 static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer) {
@@ -434,6 +444,7 @@ static gl_toml_lexer lexer_collect_integer(const gl_toml_lexer* _lexer,
         default:
             if(char_is_decimal(cp.data)) {
                 // TODO: handle leading zero number
+                lexer.token.error = GL_TOKEN_ERROR_LEADING_ZERO;
                 lexer = lexer_skip_decimal(&lexer, &cp);
             }
 
@@ -458,35 +469,33 @@ gl_toml_lexer gl_toml_lexer_init(const gl_source* _source) {
     gl_toml_lexer lexer;
     lexer.source = _source;
     lexer.pos = pos_init(1, 1, 0);
-    lexer.token_pos = pos_zero();
-    lexer.first_nonblank = pos_zero();
+    lexer.token = token_zero();
     return lexer;
 }
 
 gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     gl_toml_lexer lexer = *_lexer;
+    lexer.token.error = GL_TOKEN_ERROR_NONE;
     lexer = lexer_skip_to_token(&lexer);
     gl_codepoint cp = lexer_r_codepoint(&lexer);
     if(!lexer_can_advance(&lexer, cp.size)) {
         // end of file
-        lexer.token_pos = lexer.pos;
     } else if(char_is_bare_key(cp.data)) {
-        lexer.token_pos = lexer.pos;
+        lexer.token.start = lexer.pos;
         lexer = lexer_collect_bare_key(&lexer, &cp);
+        lexer.token.end = lexer.pos;
     } else if(char_is_string(cp.data)) {
-        lexer.token_pos = lexer.pos;
+        lexer.token.start = lexer.pos;
         lexer = lexer_collect_string(&lexer, &cp);
     } else if(char_is_decimal_prefix(cp.data) || char_is_decimal(cp.data)) {
         lexer.token_pos = lexer.pos;
         lexer = lexer_collect_integer(&lexer, &cp);
+        lexer.token.end = lexer.pos;
     }
 
     return lexer;
 }
 
 gl_toml_token gl_toml_lexer_r_token(const gl_toml_lexer* _lexer) {
-    gl_toml_token token;
-    token.start = _lexer->token_pos;
-    token.end = _lexer->pos;
-    return token;
+    return _lexer->token;
 }
