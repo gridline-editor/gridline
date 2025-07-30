@@ -13,6 +13,7 @@ typedef enum {
 
 typedef enum {
     GL_TOKEN_TYPE_UNKNOWN,
+    GL_TOKEN_TYPE_EOF,
     GL_TOKEN_TYPE_KEY_OR_INTEGER,
     GL_TOKEN_TYPE_KEY,
     GL_TOKEN_TYPE_INTEGER,

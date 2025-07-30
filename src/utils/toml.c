@@ -480,8 +480,9 @@ gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     lexer = lexer_skip_to_token(&lexer);
     gl_codepoint cp = lexer_r_codepoint(&lexer);
     if(!lexer_can_advance(&lexer, cp.size)) {
-        // end of file
     } else if(char_is_bare_key(cp.data)) {
+        lexer.token.type = GL_TOKEN_TYPE_EOF;
+        lexer.token.start = lexer.pos;
         lexer.token.start = lexer.pos;
         lexer = lexer_collect_bare_key(&lexer, &cp);
         lexer.token.end = lexer.pos;
