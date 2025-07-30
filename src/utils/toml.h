@@ -3,6 +3,19 @@
 
 #include "utils/types.h"
 
+typedef enum {
+    GL_TOKEN_INFO_NONE          = 0x0,
+    GL_TOKEN_INFO_FIRST_IN_LINE = 0x1,
+} gl_token_info;
+
+typedef enum {
+    GL_TOKEN_ERROR_NONE,
+    GL_TOKEN_ERROR_LEADING_ZERO,
+    GL_TOKEN_ERROR_MISUSED_UNDERSCORE,
+    GL_TOKEN_ERROR_CONTROL_CHARACTER,
+    GL_TOKEN_ERROR_MALFORMED_NEWLINE
+} gl_token_error;
+
 typedef struct gl_source gl_source;
 typedef struct gl_pos gl_pos;
 typedef struct gl_toml_token gl_toml_token;
