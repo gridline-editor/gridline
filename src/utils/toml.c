@@ -374,7 +374,7 @@ static gl_toml_lexer lexer_skip_binary(const gl_toml_lexer* _lexer,
 }
 
 static gl_toml_lexer lexer_skip_octal(const gl_toml_lexer* _lexer,
-                                        const gl_codepoint* _cp) {
+                                      const gl_codepoint* _cp) {
 
     gl_toml_lexer lexer = *_lexer;
     gl_codepoint cp = *_cp;
