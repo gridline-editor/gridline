@@ -6,7 +6,7 @@
 
 int main(void) {
     char* data = "0123 = 1234\ntmp = 123abc\n";
-    printf("size: %zu\n", strlen(data));
+    printf("\x1b[32m\"%s\"\x1b[0m\nsize: %zu\n", data, strlen(data));
     const gl_source source = gl_source_init(0, (u8*) data, strlen(data));
     gl_toml_lexer lexer = gl_toml_lexer_init(&source);
     u32 last_index = 0;

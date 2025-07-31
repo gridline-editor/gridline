@@ -20,6 +20,7 @@ static const char* token_type_strings[] = {
     "unknown",
     "eof",
     "key or integer",
+    "key",
     "integer",
     "string",
     "[",
