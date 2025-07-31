@@ -185,7 +185,6 @@ static b32 char_is_punctuator(u32 _cp) {
 static gl_toml_token token_zero(void) {
     gl_toml_token token;
     token.type = GL_TOKEN_TYPE_UNKNOWN;
-    token.error = GL_TOKEN_ERROR_NONE;
     token.start = pos_zero();
     token.end = pos_zero();
     return token;
@@ -488,7 +487,6 @@ static gl_toml_lexer lexer_collect_integer(const gl_toml_lexer* _lexer,
         default:
             if(char_is_decimal(cp.data)) {
                 // TODO: handle leading zero number
-                lexer.token.error = GL_TOKEN_ERROR_LEADING_ZERO;
                 lexer = lexer_skip_decimal(&lexer, &cp);
             }
 
@@ -520,7 +518,6 @@ gl_toml_lexer gl_toml_lexer_init(const gl_source* _source) {
 gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     gl_toml_lexer lexer = *_lexer;
     lexer.token.type = GL_TOKEN_TYPE_UNKNOWN;
-    lexer.token.error = GL_TOKEN_ERROR_NONE;
     lexer = lexer_skip_to_token(&lexer);
     gl_codepoint cp = lexer_r_codepoint(&lexer);
     if(!lexer_can_advance(&lexer, cp.size)) {
