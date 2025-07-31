@@ -18,6 +18,14 @@ typedef enum {
     GL_TOKEN_TYPE_KEY,
     GL_TOKEN_TYPE_INTEGER,
     GL_TOKEN_TYPE_STRING,
+    GL_TOKEN_TYPE_LBRACKET,
+    GL_TOKEN_TYPE_RBRACKET,
+    GL_TOKEN_TYPE_LCURLY,
+    GL_TOKEN_TYPE_RCURLY,
+    GL_TOKEN_TYPE_DOT,
+    GL_TOKEN_TYPE_COMMA,
+    GL_TOKEN_TYPE_EQUALS,
+    GL_TOKEN_TYPE_COLON
 } gl_token_type;
 
 typedef struct gl_source gl_source;
@@ -38,10 +46,10 @@ struct gl_pos {
 };
 
 struct gl_toml_token {
+    gl_token_type type;
     gl_pos start;
     gl_pos end;
-    gl_token_type type;
-    gl_token_error error;
+    u32 index;
 };
 
 struct gl_toml_lexer {

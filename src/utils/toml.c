@@ -35,8 +35,10 @@ static b32 char_is_binary(u32 _cp);
 static b32 char_is_decimal(u32 _cp);
 static b32 char_is_octal(u32 _cp);
 static b32 char_is_hexadecimal(u32 _cp);
+static b32 char_is_punctuator(u32 _cp);
 static gl_toml_token token_zero(void);
 static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer);
+static gl_token_type token_type_from_punctuator(const gl_codepoint* _cp);
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes);
 static gl_codepoint lexer_r_codepoint(const gl_toml_lexer* _lexer);
 static gl_codepoint lexer_r_next_codepoint(const gl_toml_lexer* _lexer, u32 _n);
@@ -172,6 +174,14 @@ static b32 char_is_hexadecimal(u32 _cp) {
     );
 }
 
+static b32 char_is_punctuator(u32 _cp) {
+    return (
+        (_cp == '[') || (_cp == ']') || (_cp == '{') ||
+        (_cp == '}') || (_cp == '.') || (_cp == ',') ||
+        (_cp == '=') || (_cp == ':')
+    );
+}
+
 static gl_toml_token token_zero(void) {
     gl_toml_token token;
     token.type = GL_TOKEN_TYPE_UNKNOWN;
@@ -200,6 +210,40 @@ static gl_toml_lexer lexer_skip_to_token(const gl_toml_lexer* _lexer) {
     }
 
     return lexer;
+}
+
+static gl_token_type token_type_from_punctuator(const gl_codepoint* _cp) {
+    gl_token_type type = GL_TOKEN_TYPE_UNKNOWN;
+    switch(_cp->data) {
+        case '[':
+            type = GL_TOKEN_TYPE_LBRACKET;
+            break;
+        case ']':
+            type = GL_TOKEN_TYPE_RBRACKET;
+            break;
+        case '{':
+            type = GL_TOKEN_TYPE_LCURLY;
+            break;
+        case '}':
+            type = GL_TOKEN_TYPE_RCURLY;
+            break;
+        case '.':
+            type = GL_TOKEN_TYPE_DOT;
+            break;
+        case ',':
+            type = GL_TOKEN_TYPE_COMMA;
+            break;
+        case '=':
+            type = GL_TOKEN_TYPE_EQUALS;
+            break;
+        case ':':
+            type = GL_TOKEN_TYPE_COLON;
+            break;
+        default:
+            break;
+    }
+
+    return type;
 }
 
 static b32 lexer_can_advance(const gl_toml_lexer* _lexer, u32 _bytes) {
@@ -498,6 +542,14 @@ gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
         lexer.token.type = GL_TOKEN_TYPE_STRING;
         lexer.token.start = lexer.pos;
         lexer = lexer_collect_string(&lexer, &cp);
+        lexer.token.end = lexer.pos;
+    } else if (char_is_punctuator(cp.data)) {
+        lexer.token.type = token_type_from_punctuator(&cp);
+        lexer.token.start = lexer.pos;
+        if(lexer_can_advance(&lexer, cp.size)) {
+            lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+        }
+
         lexer.token.end = lexer.pos;
     }
 
