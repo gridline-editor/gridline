@@ -16,6 +16,22 @@ static const u32 utf8_sizes[] = {
     2, 2, 3, 4
 };
 
+static const char* token_type_strings[] = {
+    "unknown",
+    "eof",
+    "key or integer",
+    "integer",
+    "string",
+    "[",
+    "]",
+    "{",
+    "}",
+    ".",
+    ",",
+    "=",
+    ":"
+};
+
 static gl_pos pos_init(u32 _ln, u32 _col, u32 _idx);
 static gl_pos pos_zero(void);
 static gl_pos pos_w_next_line(const gl_pos* _pos, u32 _bytes);
@@ -578,4 +594,8 @@ gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
 
 gl_toml_token gl_toml_lexer_r_token(const gl_toml_lexer* _lexer) {
     return _lexer->token;
+}
+
+const char* gl_toml_token_type_to_str(gl_token_type _type) {
+    return token_type_strings[_type];
 }
