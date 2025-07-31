@@ -62,6 +62,7 @@ static gl_toml_lexer lexer_collect_string(const gl_toml_lexer* _lexer,
                                           const gl_codepoint* _cp);
 static gl_toml_lexer lexer_collect_integer(const gl_toml_lexer* _lexer,
                                            const gl_codepoint* _cp);
+static b32 token_is_only_digits(const gl_toml_lexer* _start, u32 _n);
 
 
 static gl_pos pos_init(u32 _ln, u32 _col, u32 _idx) {
@@ -499,6 +500,22 @@ static gl_toml_lexer lexer_collect_integer(const gl_toml_lexer* _lexer,
     return lexer;
 }
 
+static b32 token_is_only_digits(const gl_toml_lexer* _start, u32 _n) {
+    gl_toml_lexer lexer = *_start;
+    b32 is_true = 1;
+    gl_codepoint cp;
+    for(u32 i = 0; i < _n; i++) {
+        cp = lexer_r_codepoint(&lexer);
+        lexer.pos = pos_w_next_col(&lexer.pos, cp.size);
+        if(!char_is_decimal(cp.data)) {
+            is_true = 0;
+            break;
+        }
+    }
+
+    return is_true;
+}
+
 gl_source gl_source_init(const char* _pathname, u8* _data, u32 _size) {
     gl_source source;
     source.pathname = _pathname;
@@ -526,10 +543,16 @@ gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer) {
     }
 
     if(char_is_bare_key(cp.data)) {
-        lexer.token.type = GL_TOKEN_TYPE_KEY_OR_INTEGER;
+        const gl_toml_lexer pre_lex = lexer;
         lexer.token.start = lexer.pos;
         lexer = lexer_collect_bare_key(&lexer, &cp);
         lexer.token.end = lexer.pos;
+        const u32 diff = lexer.token.end.index - lexer.token.start.index;
+        if(!token_is_only_digits(&pre_lex, diff)) {
+            lexer.token.type = GL_TOKEN_TYPE_KEY;
+        } else {
+            lexer.token.type = GL_TOKEN_TYPE_KEY_OR_INTEGER;
+        }
     } else if(char_is_decimal_prefix(cp.data)) {
         lexer.token.type = GL_TOKEN_TYPE_INTEGER;
         lexer.token.start = lexer.pos;

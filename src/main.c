@@ -4,7 +4,7 @@
 #include "utils/toml.h"
 
 int main(void) {
-    char* data = "01234\n";
+    char* data = "0123 = 1234\ntmp = 123abc\n";
     printf("size: %zu\n", strlen(data));
     const gl_source source = gl_source_init(0, (u8*) data, strlen(data));
     gl_toml_lexer lexer = gl_toml_lexer_init(&source);
