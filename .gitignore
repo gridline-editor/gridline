@@ -8,5 +8,8 @@ bin/
 .cache/
 compile_commands.json
 
+# zig
+zig-out/
+
 # macos
 .DS_Store
