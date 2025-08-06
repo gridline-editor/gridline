@@ -51,6 +51,7 @@ pub fn build(b: *std.Build) !void {
 
     b.installArtifact(exe);
 
+    // TODO: join json files manually, avoid system dependancy
     const sed_cmd_str = try std.fmt.allocPrint(
         allocator,
         "sed -e '1s/^/[/' -e '$s/,$/]/' {s}/*.json > compile_commands.json",
