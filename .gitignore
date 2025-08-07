@@ -9,6 +9,7 @@ bin/
 compile_commands.json
 
 # zig
+.zig-cache/
 zig-out/
 
 # macos
