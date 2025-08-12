@@ -14,6 +14,7 @@ struct gl_stack_allocator {
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
+gl_stack_allocator gl_stack_allocator_init(u8* _data, u32 _cap);
 #ifdef __cplusplus
 }
 #endif // __cplusplus
