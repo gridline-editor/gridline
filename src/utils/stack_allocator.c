@@ -55,10 +55,11 @@ gl_stack_allocator gl_stack_allocator_init(u8* _data, u32 _cap) {
     allocator.cap = _cap;
     allocator.frame = 0;
 
-    if(allocator.cap > frame_header_r_field_offset(GL_FRAME_HEADER_FIELD__MAX)) {
+    const u32 aligned_cap = align_down_8_u32(allocator.cap);
+    if(aligned_cap > frame_header_r_field_offset(GL_FRAME_HEADER_FIELD__MAX)) {
         frame_header_w_field(allocator.data,
                              GL_FRAME_HEADER_FIELD_INDEX,
-                             allocator.cap);
+                             aligned_cap);
     }
 
     return allocator;
