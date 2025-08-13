@@ -71,3 +71,23 @@ b32 gl_stack_allocator_can_allocate(const gl_stack_allocator* _allocator,
     const u32 remaining_size = stack_allocator_r_remaining_size(_allocator);
     return (required_size <= remaining_size);
 }
+
+gl_stack_allocator gl_stack_allocator_allocate(const gl_stack_allocator* _allocator,
+                                               u32 _size) {
+    u8* frame_header =
+        _allocator->data + frame_header_r_offset(_allocator->frame);
+    const u32 prev_index =
+        frame_header_r_field(frame_header, GL_FRAME_HEADER_FIELD_INDEX);
+    const u32 aligned_size = align_up_8_u32(_size);
+    const u32 curr_index = prev_index - aligned_size;
+    frame_header_w_field(frame_header, GL_FRAME_HEADER_FIELD_INDEX, curr_index);
+    gl_stack_allocator allocator = *_allocator;
+    allocator.frame++;
+    return allocator;
+}
+
+gl_stack_allocator gl_stack_allocator_deallocate(const gl_stack_allocator* _allocator) {
+    gl_stack_allocator allocator = * _allocator;
+    allocator.frame--;
+    return allocator;
+}
