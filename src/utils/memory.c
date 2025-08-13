@@ -4,7 +4,7 @@
 u32 deserialize_u32(const u8* _data, u32 _bytes) {
     u32 value = 0;
     for(u32 i = 0; i < _bytes; i++) {
-        value |= _data[i] << (8 * i);
+        value |= ((u32) _data[i]) << (8 * i);
     }
 
     return value;
