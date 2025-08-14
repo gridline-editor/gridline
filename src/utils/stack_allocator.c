@@ -5,6 +5,7 @@
 typedef enum {
     GL_FRAME_HEADER_FIELD__MIN,
     GL_FRAME_HEADER_FIELD_INDEX,
+    GL_FRAME_HEADER_FIELD_OFFSET,
     GL_FRAME_HEADER_FIELD__MAX,
 } gl_frame_header_field;
 
@@ -16,6 +17,7 @@ static void frame_header_w_field(u8* _header,
                                  gl_frame_header_field _field,
                                  u32 _value);
 static u32 stack_allocator_r_remaining_size(const gl_stack_allocator* _allocator);
+static u32 stack_allocator_r_frame_size(const gl_stack_allocator* _allocator);
 
 
 static u32 frame_header_r_field_offset(gl_frame_header_field _field) {
@@ -49,6 +51,18 @@ static u32 stack_allocator_r_remaining_size(const gl_stack_allocator* _allocator
     return (data_section_size - frame_section_size);
 }
 
+static u32 stack_allocator_r_frame_size(const gl_stack_allocator* _allocator) {
+    const u8* prev_frame_header =
+        _allocator->data + frame_header_r_offset(_allocator->frame - 1);
+    const u32 prev_index = frame_header_r_field(prev_frame_header,
+                                                GL_FRAME_HEADER_FIELD_INDEX);
+    const u8* curr_frame_header =
+        _allocator->data + frame_header_r_offset(_allocator->frame);
+    const u32 curr_index = frame_header_r_field(curr_frame_header,
+                                                GL_FRAME_HEADER_FIELD_INDEX);
+    return (prev_index - curr_index);
+}
+
 gl_stack_allocator gl_stack_allocator_init(u8* _data, u32 _cap) {
     gl_stack_allocator allocator;
     allocator.data = _data;
@@ -60,6 +74,9 @@ gl_stack_allocator gl_stack_allocator_init(u8* _data, u32 _cap) {
         frame_header_w_field(allocator.data,
                              GL_FRAME_HEADER_FIELD_INDEX,
                              aligned_cap);
+        frame_header_w_field(allocator.data,
+                             GL_FRAME_HEADER_FIELD_OFFSET,
+                             0);
     }
 
     return allocator;
@@ -81,6 +98,7 @@ gl_stack_allocator gl_stack_allocator_allocate(const gl_stack_allocator* _alloca
     const u32 aligned_size = align_up_8_u32(_size);
     const u32 curr_index = prev_index - aligned_size;
     frame_header_w_field(frame_header, GL_FRAME_HEADER_FIELD_INDEX, curr_index);
+    frame_header_w_field(frame_header, GL_FRAME_HEADER_FIELD_OFFSET, 0);
     gl_stack_allocator allocator = *_allocator;
     allocator.frame++;
     return allocator;
@@ -90,4 +108,35 @@ gl_stack_allocator gl_stack_allocator_deallocate(const gl_stack_allocator* _allo
     gl_stack_allocator allocator = * _allocator;
     allocator.frame--;
     return allocator;
+}
+
+b32 gl_stack_allocator_can_realize(const gl_stack_allocator* _allocator,
+                                   u32 _size) {
+    b32 res = 0;
+    if(_allocator->frame) {
+        const u32 frame_size = stack_allocator_r_frame_size(_allocator);
+        const u8* frame_header =
+            _allocator->data + frame_header_r_offset(_allocator->frame);
+        const u32 offset = frame_header_r_field(frame_header,
+                                                GL_FRAME_HEADER_FIELD_OFFSET);
+        const u32 aligned_size = align_up_8_u32(_size);
+        res = (aligned_size <= (frame_size - offset));
+    }
+
+    return res;
+}
+
+u8* gl_stack_allocator_realize(gl_stack_allocator* _allocator, u32 _size) {
+    u8* frame_header =
+        _allocator->data + frame_header_r_offset(_allocator->frame);
+    const u32 index = frame_header_r_field(frame_header,
+                                           GL_FRAME_HEADER_FIELD_INDEX);
+    const u32 offset = frame_header_r_field(frame_header,
+                                            GL_FRAME_HEADER_FIELD_OFFSET);
+    u8* data = _allocator->data + index + offset;
+    const u32 aligned_size = align_up_8_u32(_size);
+    frame_header_w_field(frame_header,
+                         GL_FRAME_HEADER_FIELD_OFFSET,
+                         offset + aligned_size);
+    return data;
 }
