@@ -17,9 +17,11 @@ extern "C" {
 gl_stack_allocator gl_stack_allocator_init(u8* _data, u32 _cap);
 b32 gl_stack_allocator_can_allocate(const gl_stack_allocator* _allocator,
                                     u32 _size);
-u32 gl_stack_allocator_r_remaining_size(const gl_stack_allocator* _allocator);
 gl_stack_allocator gl_stack_allocator_allocate(const gl_stack_allocator* _allocator,
                                                u32 _size);
+gl_stack_allocator gl_stack_allocator_deallocate(const gl_stack_allocator* _allocator);
+b32 gl_stack_allocator_can_realize(const gl_stack_allocator* _allocator,
+                                   u32 _size);
 u8* gl_stack_allocator_realize(gl_stack_allocator* _allocator, u32 _size);
 #ifdef __cplusplus
 }

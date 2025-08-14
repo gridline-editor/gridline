@@ -3,68 +3,105 @@
 #include "utils/stack_allocator.h"
 
 typedef enum {
-    GL_FRAME_SECTION__MIN,
-    GL_FRAME_SECTION_INDEX,
-    GL_FRAME_SECTION_OFFSET,
-    GL_FRAME_SECTION__MAX
-} gl_frame_section;
+    GL_FRAME_HEADER_FIELD__MIN,
+    GL_FRAME_HEADER_FIELD_INDEX,
+    GL_FRAME_HEADER_FIELD_OFFSET,
+    GL_FRAME_HEADER_FIELD__MAX,
+} gl_frame_header_field;
 
-static u32 align_to_8(u32 _size);
-static u32 frame_section_to_offset(gl_frame_section _section);
-static u32 frame_section_total_size(void);
-static u32 frame_header_r_at(const u8* _header, gl_frame_section _section);
-static void frame_header_w_at(u8* _header,
-                              gl_frame_section _section,
-                              u32 _data);
+static u32 frame_header_r_field_offset(gl_frame_header_field _field);
+static u32 frame_header_r_offset(u32 _frame);
+static u32 frame_header_r_field(const u8* _header,
+                                gl_frame_header_field _field);
+static void frame_header_w_field(u8* _header,
+                                 gl_frame_header_field _field,
+                                 u32 _value);
+static u32 stack_allocator_r_remaining_size(const gl_stack_allocator* _allocator);
+static u32 stack_allocator_r_frame_size(const gl_stack_allocator* _allocator);
 
 
-static u32 align_to_8(u32 _size) {
-    return ((_size + 7) & ~(7));
+static u32 frame_header_r_field_offset(gl_frame_header_field _field) {
+    return (sizeof(u32) * (_field - 1));
 }
 
-static u32 frame_section_to_offset(gl_frame_section _section) {
-    return (sizeof(u32) * (_section - 1));
+static u32 frame_header_r_offset(u32 _frame) {
+    const u32 header_size =
+        frame_header_r_field_offset(GL_FRAME_HEADER_FIELD__MAX);
+    return (header_size * _frame);
 }
 
-static u32 frame_section_total_size(void) {
-    return frame_section_to_offset(GL_FRAME_SECTION__MAX);
+static u32 frame_header_r_field(const u8* _header,
+                                gl_frame_header_field _field) {
+    const u8* field = _header + frame_header_r_field_offset(_field);
+    return deserialize_u32(field, sizeof(u32));
 }
 
-static u32 frame_header_r_at(const u8* _header, gl_frame_section _section) {
-    const u32 offset = frame_section_to_offset(_section);
-    return deserialize_u32(_header + offset, 4);
+static void frame_header_w_field(u8* _header,
+                                 gl_frame_header_field _field,
+                                 u32 _value) {
+    u8* field = _header + frame_header_r_field_offset(_field);
+    serialize_u32(field, _value);
 }
 
-static void frame_header_w_at(u8* _header,
-                              gl_frame_section _section,
-                              u32 _data) {
-    const u32 offset = frame_section_to_offset(_section);
-    serialize_u32(_header + offset, _data);
+static u32 stack_allocator_r_remaining_size(const gl_stack_allocator* _allocator) {
+    const u32 frame_section_size = frame_header_r_offset(_allocator->frame);
+    const u8* frame_header = _allocator->data + frame_section_size;
+    const u32 data_section_size = frame_header_r_field(frame_header,
+                                                       GL_FRAME_HEADER_FIELD_INDEX);
+    return (data_section_size - frame_section_size);
+}
+
+static u32 stack_allocator_r_frame_size(const gl_stack_allocator* _allocator) {
+    const u8* prev_frame_header =
+        _allocator->data + frame_header_r_offset(_allocator->frame - 1);
+    const u32 prev_index = frame_header_r_field(prev_frame_header,
+                                                GL_FRAME_HEADER_FIELD_INDEX);
+    const u8* curr_frame_header =
+        _allocator->data + frame_header_r_offset(_allocator->frame);
+    const u32 curr_index = frame_header_r_field(curr_frame_header,
+                                                GL_FRAME_HEADER_FIELD_INDEX);
+    return (prev_index - curr_index);
 }
 
 gl_stack_allocator gl_stack_allocator_init(u8* _data, u32 _cap) {
     gl_stack_allocator allocator;
     allocator.data = _data;
-    allocator.frame = 0;
     allocator.cap = _cap;
-    frame_header_w_at(allocator.data, GL_FRAME_SECTION_INDEX, allocator.cap);
-    frame_header_w_at(allocator.data, GL_FRAME_SECTION_OFFSET, 0);
+    allocator.frame = 0;
+
+    const u32 aligned_cap = align_down_8_u32(allocator.cap);
+    if(aligned_cap > frame_header_r_field_offset(GL_FRAME_HEADER_FIELD__MAX)) {
+        frame_header_w_field(allocator.data,
+                             GL_FRAME_HEADER_FIELD_INDEX,
+                             aligned_cap);
+        frame_header_w_field(allocator.data,
+                             GL_FRAME_HEADER_FIELD_OFFSET,
+                             0);
+    }
+
     return allocator;
 }
 
 b32 gl_stack_allocator_can_allocate(const gl_stack_allocator* _allocator,
-                                   u32 _size) {
-    const u32 aligned_size = align_to_8(_size);
-    return (aligned_size <= gl_stack_allocator_r_remaining_size(_allocator));
+                                    u32 _size) {
+    const u32 required_size = align_up_8_u32(_size) + frame_header_r_offset(1);
+    const u32 remaining_size = stack_allocator_r_remaining_size(_allocator);
+    return (required_size <= remaining_size);
 }
 
-u32 gl_stack_allocator_r_remaining_size(const gl_stack_allocator* _allocator) {
-    const u32 header_size = (_allocator->frame + 1) * frame_section_total_size();
-    const u32 curr_index = frame_header_r_at(_allocator->data,
-                                             GL_FRAME_SECTION_INDEX);
-    const u32 remaining_size = curr_index - header_size;
-    return remaining_size;
-    
+gl_stack_allocator gl_stack_allocator_allocate(const gl_stack_allocator* _allocator,
+                                               u32 _size) {
+    u8* frame_header =
+        _allocator->data + frame_header_r_offset(_allocator->frame);
+    const u32 prev_index =
+        frame_header_r_field(frame_header, GL_FRAME_HEADER_FIELD_INDEX);
+    const u32 aligned_size = align_up_8_u32(_size);
+    const u32 curr_index = prev_index - aligned_size;
+    frame_header_w_field(frame_header, GL_FRAME_HEADER_FIELD_INDEX, curr_index);
+    frame_header_w_field(frame_header, GL_FRAME_HEADER_FIELD_OFFSET, 0);
+    gl_stack_allocator allocator = *_allocator;
+    allocator.frame++;
+    return allocator;
 }
 
 gl_stack_allocator gl_stack_allocator_deallocate(const gl_stack_allocator* _allocator) {
@@ -73,27 +110,33 @@ gl_stack_allocator gl_stack_allocator_deallocate(const gl_stack_allocator* _allo
     return allocator;
 }
 
-gl_stack_allocator gl_stack_allocator_allocate(const gl_stack_allocator* _allocator,
-                                             u32 _size) {
-    const u32 aligned_size = align_to_8(_size);
-    const u32 prev_index = frame_header_r_at(_allocator->data,
-                                             GL_FRAME_SECTION_INDEX);
-    const u32 curr_index = prev_index - aligned_size;
-    gl_stack_allocator allocator = *_allocator;
-    frame_header_w_at(_allocator->data, GL_FRAME_SECTION_INDEX, curr_index);
-    frame_header_w_at(_allocator->data, GL_FRAME_SECTION_OFFSET, 0);
-    allocator.frame++;
-    return allocator;
+b32 gl_stack_allocator_can_realize(const gl_stack_allocator* _allocator,
+                                   u32 _size) {
+    b32 res = 0;
+    if(_allocator->frame) {
+        const u32 frame_size = stack_allocator_r_frame_size(_allocator);
+        const u8* frame_header =
+            _allocator->data + frame_header_r_offset(_allocator->frame);
+        const u32 offset = frame_header_r_field(frame_header,
+                                                GL_FRAME_HEADER_FIELD_OFFSET);
+        const u32 aligned_size = align_up_8_u32(_size);
+        res = (aligned_size <= (frame_size - offset));
+    }
+
+    return res;
 }
 
 u8* gl_stack_allocator_realize(gl_stack_allocator* _allocator, u32 _size) {
-    const u32 aligned_size = align_to_8(_size);
-    const u32 offset = frame_header_r_at(_allocator->data,
-                                         GL_FRAME_SECTION_OFFSET);
-    u8* data = _allocator->data + offset;
-    frame_header_w_at(_allocator->data,
-                      GL_FRAME_SECTION_OFFSET,
-                      offset + aligned_size);
+    u8* frame_header =
+        _allocator->data + frame_header_r_offset(_allocator->frame);
+    const u32 index = frame_header_r_field(frame_header,
+                                           GL_FRAME_HEADER_FIELD_INDEX);
+    const u32 offset = frame_header_r_field(frame_header,
+                                            GL_FRAME_HEADER_FIELD_OFFSET);
+    u8* data = _allocator->data + index + offset;
+    const u32 aligned_size = align_up_8_u32(_size);
+    frame_header_w_field(frame_header,
+                         GL_FRAME_HEADER_FIELD_OFFSET,
+                         offset + aligned_size);
     return data;
 }
-
