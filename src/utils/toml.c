@@ -597,6 +597,33 @@ gl_toml_token gl_toml_lexer_r_token(const gl_toml_lexer* _lexer) {
     return _lexer->token;
 }
 
+gl_toml_lexer_pass gl_toml_lexer_first_pass(const gl_toml_lexer* _lexer) {
+    gl_toml_lexer lexer = *_lexer;
+    gl_toml_token token;
+    gl_toml_lexer_pass pass = {0};
+    u32 last_index = 0;
+
+    while(1) {
+        lexer = gl_toml_lexer_lex(&lexer);
+        token = gl_toml_lexer_r_token(&lexer);
+        if((token.type == GL_TOKEN_TYPE_INTEGER) ||
+           (token.type == GL_TOKEN_TYPE_STRING) ||
+           (token.type == GL_TOKEN_TYPE_KEY_OR_INTEGER) ||
+           (token.type == GL_TOKEN_TYPE_KEY)) {
+            pass.lexeme_bytes += token.end.index - token.start.index + 1;
+        }
+
+        pass.tokens++;
+        if(last_index == lexer.pos.index) {
+            break;
+        }
+
+        last_index = lexer.pos.index;
+    }
+
+    return pass;
+}
+
 const char* gl_toml_token_type_to_str(gl_token_type _type) {
     return token_type_strings[_type];
 }

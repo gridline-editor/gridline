@@ -32,6 +32,7 @@ typedef struct gl_source gl_source;
 typedef struct gl_pos gl_pos;
 typedef struct gl_toml_token gl_toml_token;
 typedef struct gl_toml_lexer gl_toml_lexer;
+typedef struct gl_toml_lexer_pass gl_toml_lexer_pass;
 
 struct gl_source {
   const char* pathname;
@@ -59,6 +60,11 @@ struct gl_toml_lexer {
     gl_toml_token token;
 };
 
+struct gl_toml_lexer_pass {
+    u32 tokens;
+    u32 lexeme_bytes;
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -66,6 +72,7 @@ gl_source gl_source_init(const char* _pathname, u8* _data, u32 _size);
 gl_toml_lexer gl_toml_lexer_init(const gl_source* _source);
 gl_toml_lexer gl_toml_lexer_lex(const gl_toml_lexer* _lexer);
 gl_toml_token gl_toml_lexer_r_token(const gl_toml_lexer* _lexer);
+gl_toml_lexer_pass gl_toml_lexer_first_pass(const gl_toml_lexer* _lexer);
 const char* gl_toml_token_type_to_str(gl_token_type _type);
 #ifdef __cplusplus
 }
